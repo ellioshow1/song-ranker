@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Song Ranker</title>
+  <meta name="description" content="Rank every song by any artist head to head, then compare with friends and the crowd.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+</head>
+<body>
+  <header class="top">
+    <button class="brand" id="brand" title="All artists">🎧 <span>Song Ranker</span> <b id="brand-artist"></b></button>
+    <nav id="tabs" hidden>
+      <button data-view="songs">Songs</button>
+      <button data-view="play">Matchups</button>
+      <button data-view="rank">Ranking</button>
+      <button data-view="compare">Compare</button>
+      <button data-view="share">Share</button>
+    </nav>
+  </header>
+
+  <div id="toast" role="status" hidden></div>
+
+  <main>
+    <section id="view-loading" class="view narrow"><p class="lede">Loading…</p></section>
+
+    <!-- Artists -->
+    <section id="view-home" class="view narrow" hidden>
+      <h1>Rank every song by any artist.</h1>
+      <p class="lede">Two songs at a time, you pick the better one. Every pick updates Elo ratings, so every song always has an exact place. Then compare your list with friends and with the crowd. No account needed.</p>
+      <input id="artist-search" type="search" placeholder="Search for an artist…" autocomplete="off">
+      <ul id="artist-results" class="plist"></ul>
+      <div class="card" id="import-card" hidden></div>
+      <div id="mine-wrap" hidden>
+        <h2 class="section-h">Your rankings</h2>
+        <ul id="mine-list" class="plist"></ul>
+      </div>
+      <div id="friends-wrap" hidden>
+        <h2 class="section-h">Friends' rankings you've saved</h2>
+        <ul id="friends-list" class="plist"></ul>
+      </div>
+      <p class="hint share-hint">Music data and previews come from Deezer. Everything you do stays in this browser. <button class="link" id="copy-app">Copy the app link</button></p>
+    </section>
+
+    <!-- Scan -->
+    <section id="view-scan" class="view narrow" hidden>
+      <h1 id="scan-title">Digging through the vault…</h1>
+      <p class="lede" id="scan-text">Starting…</p>
+      <div class="bar"><div id="scan-bar"></div></div>
+      <p class="hint" id="scan-sub"></p>
+    </section>
+
+    <!-- Songs: who's in -->
+    <section id="view-songs" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1 id="songs-title"></h1>
+          <p class="lede" id="songs-lede"></p>
+        </div>
+      </div>
+      <div class="presets" id="presets"></div>
+
+      <div class="card filters">
+        <div class="field">Release types <span class="hint">A song counts if any version of it is on one of these.</span>
+          <div class="chips" id="f-kinds"></div>
+        </div>
+        <div class="field">Versions to rank as their own songs
+          <div class="chips" id="f-tags"></div>
+        </div>
+        <div class="filter-grid">
+          <label class="field">Shortest song: <b id="f-len-val"></b>
+            <input id="f-len" type="range" min="0" max="180" step="15">
+            <span class="hint">Hides intros, skits and interludes.</span>
+          </label>
+          <label class="field">Only the crowd's top: <b id="f-top-val"></b>
+            <input id="f-top" type="range" min="0" max="200" step="10">
+            <span class="hint">By Deezer popularity (recent streams).</span>
+          </label>
+          <div class="field">Years
+            <div class="row"><select id="f-from"></select><span class="hint">to</span><select id="f-to"></select></div>
+          </div>
+          <label class="field">When a song is on several releases, show
+            <select id="f-prefer">
+              <option value="original">The original release</option>
+              <option value="popular">The most-streamed version</option>
+              <option value="latest">The latest release</option>
+            </select>
+          </label>
+        </div>
+        <details class="albums">
+          <summary>Albums <span class="hint" id="f-albums-sum"></span></summary>
+          <div class="album-chips" id="f-albums"></div>
+        </details>
+      </div>
+
+      <div class="card pool-card">
+        <div class="pool-head">
+          <div>
+            <h2><span id="pool-count">0</span> songs in</h2>
+            <p class="hint" id="pool-est"></p>
+          </div>
+          <button id="start-btn" class="primary big">Start ranking</button>
+        </div>
+        <div class="row wrap">
+          <input id="song-search" type="search" placeholder="Search songs and albums…" autocomplete="off">
+          <input id="add-link" placeholder="Missing a song? Paste a Deezer track link">
+          <button id="add-link-btn" class="ghost">Add</button>
+        </div>
+        <div class="row wrap list-opts">
+          <label class="toggle"><input type="checkbox" id="only-dupes"> <span id="only-dupes-label">Only possible duplicates</span></label>
+          <span class="hint">Tap a song to see its versions, choose which one to use, or split and merge duplicates.</span>
+        </div>
+        <ul id="song-list" class="plist"></ul>
+      </div>
+      <div class="card danger" id="restart-card" hidden>
+        <h2>Start a new ranking</h2>
+        <p>Throws away every pick for this artist and returns to choosing songs. Your filters and hot takes stay. <a href="#" id="backup-first">Download a backup first</a> if you might want it.</p>
+        <button id="restart" class="danger-btn">Start over</button>
+      </div>
+    </section>
+
+    <!-- Matchups -->
+    <section id="view-play" class="view" hidden>
+      <div class="progress">
+        <div class="progress-label"><b id="lvl-label"></b><span id="lvl-detail"></span></div>
+        <div class="bar"><div id="lvl-bar"></div></div>
+      </div>
+      <div class="matchup" id="matchup">
+        <article class="side" data-side="a"></article>
+        <div class="vs">VS</div>
+        <article class="side" data-side="b"></article>
+      </div>
+      <div class="controls">
+        <button class="ghost" id="tie-btn">Can't split them <kbd>↓</kbd></button>
+        <button class="ghost" id="skip-btn">Skip <kbd>S</kbd></button>
+        <button class="ghost" id="undo-btn">Undo <kbd>Z</kbd></button>
+      </div>
+      <p class="hint center">Keys: <kbd>←</kbd> <kbd>→</kbd> pick · <kbd>A</kbd> <kbd>D</kbd> play/pause. Stop whenever you like; your ranking is always complete and gets sharper the more you pick.</p>
+    </section>
+
+    <!-- Ranking -->
+    <section id="view-rank" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1>Your ranking</h1>
+          <p class="lede" id="rank-summary"></p>
+        </div>
+        <div class="seg" id="rank-mode"><button data-v="songs">Songs</button><button data-v="albums">Albums</button></div>
+      </div>
+      <input id="rank-search" type="search" placeholder="Find a song…">
+      <ol id="rank-list" class="plist ranked"></ol>
+    </section>
+
+    <!-- Compare -->
+    <section id="view-compare" class="view" hidden>
+      <h1>Compare</h1>
+      <div class="chips" id="cmp-pick"></div>
+      <div id="cmp-body"></div>
+    </section>
+
+    <!-- Share -->
+    <section id="view-share" class="view narrow" hidden>
+      <h1>Share your ranking</h1>
+      <label class="field">Your name (shown on the link and image)
+        <input id="share-name" placeholder="e.g. Elliot" maxlength="30">
+      </label>
+      <div class="card">
+        <h2>Link</h2>
+        <p class="hint">Carries your whole ranking and your hot takes. Friends can open it, compare it with their own and the crowd, and save it for a group ranking. <span id="link-len"></span></p>
+        <div class="row wrap">
+          <button id="share-link" class="primary">Share link</button>
+          <button id="copy-link" class="ghost">Copy link</button>
+          <button id="copy-text" class="ghost">Copy top 25 as text</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Image</h2>
+        <div class="seg" id="img-n"><button data-v="10">Top 10</button><button data-v="25">Top 25</button><button data-v="50">Top 50</button></div>
+        <div class="img-wrap"><img id="img-preview" alt="Preview of your ranking image"></div>
+        <div class="row wrap">
+          <button id="share-img" class="primary">Share image</button>
+          <button id="dl-img" class="ghost">Download</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Send it to Spotify <span class="hint">(optional)</span></h2>
+        <div id="sp-connect">
+          <p class="hint">Needs a free Spotify developer app (one-time setup). Each song is looked up on Spotify once and remembered.</p>
+          <button id="sp-connect-btn" class="ghost">Connect Spotify</button>
+        </div>
+        <div id="sp-save" hidden>
+          <div class="row wrap">
+            <input id="pl-name" placeholder="Playlist name">
+            <label class="inline">Top <input id="pl-count" type="number" min="1" step="1"> songs</label>
+            <button id="save-pl" class="primary">Save as playlist</button>
+          </div>
+          <button class="link" id="sp-logout">Log out of Spotify</button>
+        </div>
+        <p class="hint" id="pl-status"></p>
+      </div>
+      <div class="card">
+        <h2>Backup</h2>
+        <p class="hint">Progress saves in this browser automatically. A backup file protects it from cleared browser data and moves it to another device.</p>
+        <div class="row wrap">
+          <button id="export-json" class="ghost">Download backup</button>
+          <label class="ghost filebtn">Restore from backup<input id="import-json" type="file" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Someone else's ranking -->
+    <section id="view-shared" class="view" hidden>
+      <div class="head-row">
+        <div>
+          <h1 id="shared-title"></h1>
+          <p class="lede" id="shared-lede"></p>
+        </div>
+        <div class="row wrap" id="shared-actions"></div>
+      </div>
+      <div class="stat-tiles" id="shared-tiles"></div>
+      <div class="card" id="shared-takes-card" hidden>
+        <h2>Their hot takes</h2>
+        <ul id="shared-takes" class="takes"></ul>
+      </div>
+      <ol id="shared-list" class="plist ranked"></ol>
+    </section>
+
+    <!-- Spotify connect (export only) -->
+    <section id="view-connect" class="view narrow" hidden>
+      <h1>Connect Spotify</h1>
+      <p class="lede">Only needed to save your ranking as a Spotify playlist.</p>
+      <div class="card" id="shared-login" hidden>
+        <h2>Log in</h2>
+        <p>Whoever shared this app needs to have added your Spotify email to it first.</p>
+        <button id="shared-login-btn" class="primary big">Log in with Spotify</button>
+      </div>
+      <details class="card steps" id="own-app">
+        <summary><h2>Set up your own Spotify access (about 3 minutes, one time)</h2></summary>
+        <ol>
+          <li>Open the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a> and log in.</li>
+          <li>Click <b>Create app</b>. Any name and description are fine.</li>
+          <li>Under <b>Redirect URIs</b>, add exactly:
+            <div class="copyrow"><code id="redirect-uri"></code><button class="ghost small" id="copy-redirect">Copy</button></div>
+          </li>
+          <li>Under <b>Which API/SDKs are you planning to use?</b>, tick <b>Web API</b>. Save.</li>
+          <li>Open the app's <b>Settings</b>, copy the <b>Client ID</b>, and paste it here:</li>
+        </ol>
+        <div class="row">
+          <input id="client-id" placeholder="Client ID" autocomplete="off" spellcheck="false">
+          <button id="connect-btn" class="primary">Connect Spotify</button>
+        </div>
+        <p class="hint">Spotify requires the account that owns a developer app to have Premium. Your login token stays in this browser.</p>
+      </details>
+      <button class="ghost" id="connect-back">Back</button>
+    </section>
+  </main>
+
+  <dialog id="song-dlg"></dialog>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
