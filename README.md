@@ -25,7 +25,7 @@ picks are copied (never moved) and replayed as Elo ratings.
   what you think is overplayed, a scatter of every song and both top 25s.
 - **Sharing:** a link with your whole ranking and your hot takes (notes on songs), an image of your top 10/25/50, or text.
   Opening a friend's link shows their list against yours and the crowd; save it to compare any time.
-- **Charts on the Share tab:** albums at a glance (each album's songs as dots by place, albums ordered by average place)
+- **Stats tab:** albums at a glance (each album's songs as dots by place, albums ordered by average place)
   and how your ranking took shape (every song's place after each round of matchups, with the biggest climb, the biggest
   fall and who has held #1). Follow up to 8 songs through it. Upsets and rivalries: picks your ranking now disagrees
   with, songs that met more than once or tied, and neighbours at the top that never met, each with a rematch button.

@@ -99,7 +99,7 @@ function download(name, text, type) {
 const slug = s => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'artist';
 
 let view = null;
-const ARTIST_VIEWS = ['songs', 'play', 'rank', 'compare', 'share'];
+const ARTIST_VIEWS = ['songs', 'play', 'rank', 'stats', 'compare', 'share'];
 function show(v) {
   view = v;
   if (v !== 'play') players.pauseAll();
@@ -119,7 +119,7 @@ function show(v) {
 }
 // Re-render the current view in place (no scroll jump).
 function refresh() {
-  ({ home: renderHome, songs: renderSongs, play: renderPlay, rank: renderRank, compare: renderCompare, share: renderShare, connect: renderConnect, shared: renderShared }[view] || (() => {}))();
+  ({ home: renderHome, songs: renderSongs, play: renderPlay, rank: renderRank, stats: renderStats, compare: renderCompare, share: renderShare, connect: renderConnect, shared: renderShared }[view] || (() => {}))();
 }
 for (const b of $$('#tabs button')) b.onclick = () => show(b.dataset.view);
 $('#brand').onclick = () => { clearHash(); show('home'); };
@@ -793,9 +793,6 @@ function renderShare() {
   $('#share-name').value = me.name;
   $('#link-len').textContent = `(${myLink().length.toLocaleString()} characters.)`;
   renderImg();
-  renderAlbums(myOrder());
-  renderTimeline();
-  renderRivals();
   $('#sp-connect').hidden = sp.isLoggedIn();
   $('#sp-save').hidden = !sp.isLoggedIn();
   if (!$('#pl-name').value || $('#pl-name').dataset.artist !== S.artist.id) {
@@ -842,6 +839,15 @@ $('#share-img').onclick = async () => {
   $('#dl-img').click();
   toast("This browser can't share images directly, so it was downloaded instead.");
 };
+
+// ---------- stats ----------
+
+function renderStats() {
+  if (!S?.pool) return show('songs');
+  renderAlbums(myOrder());
+  renderTimeline();
+  renderRivals();
+}
 
 // Albums at a glance: each album or EP with 3+ songs in the ranking (singles and everything else pooled), by average place.
 let abGroups = [], abN = 0;
@@ -1047,7 +1053,7 @@ $('#rivals-card').addEventListener('click', e => {
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (view === 'share' && S?.pool && $('#tl-chart').clientWidth !== tlWidth) renderTimeline(); }, 150);
+  resizeTimer = setTimeout(() => { if (view === 'stats' && S?.pool && $('#tl-chart').clientWidth !== tlWidth) renderTimeline(); }, 150);
 });
 
 // Spotify export: each song is matched once (by ISRC) and remembered.

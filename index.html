@@ -18,6 +18,7 @@
       <button data-view="songs">Songs</button>
       <button data-view="play">Matchups</button>
       <button data-view="rank">Ranking</button>
+      <button data-view="stats">Stats</button>
       <button data-view="compare">Compare</button>
       <button data-view="share">Share</button>
     </nav>
@@ -163,30 +164,10 @@
       <div id="cmp-body"></div>
     </section>
 
-    <!-- Share -->
-    <section id="view-share" class="view narrow" hidden>
-      <h1>Share your ranking</h1>
-      <label class="field">Your name (shown on the link and image)
-        <input id="share-name" placeholder="e.g. Elliot" maxlength="30">
-      </label>
-      <div class="card">
-        <h2>Link</h2>
-        <p class="hint">Carries your whole ranking and your hot takes. Friends can open it, compare it with their own and the crowd, and save it for a group ranking. <span id="link-len"></span></p>
-        <div class="row wrap">
-          <button id="share-link" class="primary">Share link</button>
-          <button id="copy-link" class="ghost">Copy link</button>
-          <button id="copy-text" class="ghost">Copy top 25 as text</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Image</h2>
-        <div class="seg" id="img-n"><button data-v="10">Top 10</button><button data-v="25">Top 25</button><button data-v="50">Top 50</button></div>
-        <div class="img-wrap"><img id="img-preview" alt="Preview of your ranking image"></div>
-        <div class="row wrap">
-          <button id="share-img" class="primary">Share image</button>
-          <button id="dl-img" class="ghost">Download</button>
-        </div>
-      </div>
+    <!-- Stats -->
+    <section id="view-stats" class="view" hidden>
+      <h1>Your stats</h1>
+      <p class="lede">How your ranking came together: your albums side by side, every song's journey round by round, and the picks that might deserve a rematch.</p>
       <div class="card" id="albums-card">
         <h2>Albums at a glance</h2>
         <p class="hint">Albums in order of their songs' average place in your ranking. Each dot is a song (left is your #1), the bar is the average. Tap a dot for the song.</p>
@@ -212,12 +193,44 @@
         <p class="hint" id="rv-empty" hidden></p>
         <div id="rv-body">
           <div id="rv-tiles"></div>
-          <h3 class="sub-h">Biggest upsets</h3>
-          <p class="hint">Picks where a song beat one you now rank far above it. Changed your mind? A rematch counts as a new pick.</p>
-          <ul class="plist" id="rv-upsets"></ul>
-          <h3 class="sub-h">Rivalries</h3>
-          <p class="hint">Songs that met more than once or that you couldn't split, plus neighbours near the top that haven't met yet.</p>
-          <ul class="plist" id="rv-rivals"></ul>
+          <div class="cols">
+            <div>
+              <h3 class="sub-h">Biggest upsets</h3>
+              <p class="hint">Picks where a song beat one you now rank far above it. Changed your mind? A rematch counts as a new pick.</p>
+              <ul class="plist" id="rv-upsets"></ul>
+            </div>
+            <div>
+              <h3 class="sub-h">Rivalries</h3>
+              <p class="hint">Songs that met more than once or that you couldn't split, plus neighbours near the top that haven't met yet.</p>
+              <ul class="plist" id="rv-rivals"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Share -->
+    <section id="view-share" class="view narrow" hidden>
+      <h1>Share your ranking</h1>
+      <label class="field">Your name (shown on the link and image)
+        <input id="share-name" placeholder="e.g. Elliot" maxlength="30">
+      </label>
+      <div class="card">
+        <h2>Link</h2>
+        <p class="hint">Carries your whole ranking and your hot takes. Friends can open it, compare it with their own and the crowd, and save it for a group ranking. <span id="link-len"></span></p>
+        <div class="row wrap">
+          <button id="share-link" class="primary">Share link</button>
+          <button id="copy-link" class="ghost">Copy link</button>
+          <button id="copy-text" class="ghost">Copy top 25 as text</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Image</h2>
+        <div class="seg" id="img-n"><button data-v="10">Top 10</button><button data-v="25">Top 25</button><button data-v="50">Top 50</button></div>
+        <div class="img-wrap"><img id="img-preview" alt="Preview of your ranking image"></div>
+        <div class="row wrap">
+          <button id="share-img" class="primary">Share image</button>
+          <button id="dl-img" class="ghost">Download</button>
         </div>
       </div>
       <div class="card">
