@@ -27,7 +27,11 @@ picks are copied (never moved) and replayed as Elo ratings.
   Opening a friend's link shows their list against yours and the crowd; save it to compare any time.
 - **Charts on the Share tab:** albums at a glance (each album's songs as dots by place, albums ordered by average place)
   and how your ranking took shape (every song's place after each round of matchups, with the biggest climb, the biggest
-  fall and who has held #1). Follow up to 8 songs through it.
+  fall and who has held #1). Follow up to 8 songs through it. Upsets and rivalries: picks your ranking now disagrees
+  with, songs that met more than once or tied, and neighbours at the top that never met, each with a rematch button.
+- **The matchups behind every song:** its song card lists every matchup it played (opponent, result, rating change)
+  with a chart of its rating game by game, its best win and worst loss. On desktop, hovering a song in the ranking
+  shows a summary.
 - **Group ranking:** blend you and any saved friends into a consensus list, see the most divisive songs and who agrees
   with whom.
 - Optional Spotify playlist export (matched by ISRC), and backup/restore.
@@ -44,7 +48,7 @@ Double-click `start.bat`, or run `python -m http.server 8775 --bind 127.0.0.1` h
 - `js/catalog.js`: song merging, version tags, release kinds, filters and presets
 - `js/elo.js`: Elo ratings replayed from picks (also round by round), pairing, progress levels
 - `js/compare.js`: agreement, disagreements, group consensus, scatter
-- `js/charts.js`: the round-by-round bump chart and the chart tooltip
+- `js/charts.js`: the round-by-round bump chart, rating sparklines and the chart tooltip
 - `js/share.js`: share links (varint-packed ids + hot takes) and the share image
 - `js/store.js`: localStorage + IndexedDB, read-only access to the old app's saves
 - `js/spotify.js`, `js/config.js`: optional Spotify export

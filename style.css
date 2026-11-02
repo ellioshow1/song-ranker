@@ -268,6 +268,31 @@ table.matrix th:first-child { text-align: left; }
 .bump .key { stroke-width: 3; stroke-linecap: round; }
 .bump .hit { cursor: pointer; }
 
+/* Upsets and rivalries */
+.sub-h { font-size: 15px; margin: 18px 0 2px; }
+#rivals-card .plist { margin-top: 4px; }
+
+/* The matchups behind a song: rating sparkline and game list (song card and ranking hover) */
+.spark-wrap .spark { width: 100%; height: auto; display: block; }
+#chart-tip .spark { display: block; margin: 6px 0 4px; }
+.spark .base { stroke: var(--line); stroke-width: 1; }
+.spark polyline { fill: none; stroke: var(--muted); stroke-width: 2; stroke-linejoin: round; }
+.spark circle { stroke: var(--panel); stroke-width: 2; }
+#chart-tip .spark circle { stroke: var(--panel-2); }
+.spark .w { fill: var(--up); }
+.spark .l { fill: var(--down); }
+.spark .t { fill: var(--muted); }
+.games { list-style: none; padding: 0; margin: 0; }
+.games li { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.games li:hover { background: rgba(255,255,255,.03); }
+.games .res { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; border: 1px solid var(--line); }
+.games .res.w { color: var(--up); border-color: rgba(74,222,128,.45); }
+.games .res.l { color: var(--down); border-color: rgba(248,113,113,.45); }
+.games .res.t { color: var(--muted); }
+.games .d { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.games .d.up { color: var(--up); }
+.games .d.down { color: var(--down); }
+
 .steps ol { padding-left: 20px; margin: 0 0 16px; }
 .steps li { margin-bottom: 10px; }
 .copyrow { display: flex; gap: 8px; align-items: center; margin-top: 6px; }

@@ -5,7 +5,7 @@ import * as C from './catalog.js';
 import * as store from './store.js';
 import { agreement, disagreements, consensus, scatterSvg } from './compare.js';
 import { shareUrl, readShared, renderImage, canvasBlob } from './share.js';
-import { SLOTS, bumpChart, showTip, hideTip } from './charts.js';
+import { SLOTS, bumpChart, sparkSvg, showTip, hideTip } from './charts.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -632,6 +632,7 @@ function albumRanking(order) {
 function renderRank() {
   if (!S?.pool) return show('songs');
   const order = myOrder();
+  rankPlaces = ranksOf(order);
   const crowd = ranksOf(crowdOrder(poolIds));
   const pr = Elo.progress(R, S.picks.length);
   for (const b of $$('#rank-mode button')) b.classList.toggle('on', b.dataset.v === rankMode);
@@ -657,7 +658,7 @@ function renderRank() {
       <div class="t-right"><b>${Math.round(r.r)}</b> ${deltaHtml(i + 1, crowd.get(id))}</div></li>`;
   }).join('');
 }
-$('#rank-list').addEventListener('click', e => { const id = e.target.closest('[data-song]')?.dataset.song; if (id) showSong(id); });
+$('#rank-list').addEventListener('click', e => { const id = e.target.closest('[data-song]')?.dataset.song; if (id) { rankTipOff(); showSong(id); } });
 
 // ---------- compare ----------
 
@@ -794,6 +795,7 @@ function renderShare() {
   renderImg();
   renderAlbums(myOrder());
   renderTimeline();
+  renderRivals();
   $('#sp-connect').hidden = sp.isLoggedIn();
   $('#sp-save').hidden = !sp.isLoggedIn();
   if (!$('#pl-name').value || $('#pl-name').dataset.artist !== S.artist.id) {
@@ -969,6 +971,79 @@ function toggleFollow(id) {
 $('#tl-k').onclick = e => { const v = e.target.dataset.v; if (v != null) { tlK = +v; renderTimeline(); } };
 $('#tl-add').onchange = () => { const id = $('#tl-add').value; if (id) toggleFollow(id); };
 $('#tl-follow').onclick = e => { const id = e.target.closest('[data-unfollow]')?.dataset.unfollow; if (id) toggleFollow(id); };
+// Upsets and rivalries, judged by where songs sit now. A pair that met more than once counts by its latest result.
+function renderRivals() {
+  const order = myOrder(), places = ranksOf(order), N = order.length;
+  const enough = S.picks.length >= N / 2;
+  $('#rv-body').hidden = !enough;
+  $('#rv-empty').hidden = enough;
+  if (!enough) { $('#rv-empty').textContent = 'Shows up after your first round of matchups (one per song).'; return; }
+  const name = id => song(id).name;
+  const games = songPicks().map(([a, b, res], n) => ({ a, b, res, n, w: res === 1 ? a : res === 0 ? b : null }))
+    .filter(g => R.has(g.a) && R.has(g.b) && g.a !== g.b);
+  const pairs = new Map();
+  for (const g of games) {
+    const [x, y] = places.get(g.a) < places.get(g.b) ? [g.a, g.b] : [g.b, g.a];
+    const k = x + '|' + y;
+    if (!pairs.has(k)) pairs.set(k, { x, y, xw: 0, yw: 0, t: 0, n: 0 });
+    const p = pairs.get(k);
+    p.n++; p.last = g;
+    if (!g.w) p.t++; else if (g.w === x) p.xw++; else p.yw++;
+  }
+
+  const top = order[0], beatTop = [...new Set(R.get(top).log.filter(g => g.res === 0).map(g => g.opp))];
+  const kills = new Map();
+  for (const g of games) if (g.w && places.get(g.w) > 10 && places.get(g.w === g.a ? g.b : g.a) <= 10) kills.set(g.w, (kills.get(g.w) || 0) + 1);
+  const [killer, killed] = [...kills].sort((a, b) => b[1] - a[1] || places.get(a[0]) - places.get(b[0]))[0] || [];
+  const ties = games.filter(g => !g.w).length;
+  $('#rv-tiles').innerHTML = tilesHtml([
+    [esc(name(top)), `is your #1 at ${record(R.get(top))}. ${beatTop.length ? `Beaten by ${beatTop.slice(0, 3).map(name).join(', ')}${beatTop.length > 3 ? '…' : '.'}` : 'Never beaten.'}`],
+    ...(killer ? [[esc(name(killer)), `beat ${killed} of your top 10 from #${places.get(killer)}. The giant killer.`]] : []),
+    [String(ties), `matchup${ties === 1 ? '' : 's'} you couldn't split`],
+  ]);
+
+  const btn = (a, b, label) => `<button class="ghost small" data-rematch="${a},${b}">${label}</button>`;
+  const upsets = [...pairs.values()].filter(p => p.last.w === p.y && places.get(p.y) - places.get(p.x) >= Math.max(5, N / 10))
+    .sort((p, q) => (places.get(q.y) - places.get(q.x)) / Math.sqrt(places.get(q.x)) - (places.get(p.y) - places.get(p.x)) / Math.sqrt(places.get(p.x)))
+    .slice(0, 8);
+  $('#rv-upsets').innerHTML = upsets.map(p => {
+    const s = song(p.y);
+    return `<li class="clickable" data-song="${p.y}">${cover(s.album.imageSmall || s.album.image)}
+      <div class="t-main"><div class="t-name">${esc(s.name)}</div><div class="t-sub">#${places.get(p.y)} beat #${places.get(p.x)} ${esc(name(p.x))} · round ${roundOf(p.last.n)}</div></div>
+      ${btn(p.x, p.y, 'Rematch')}</li>`;
+  }).join('') || '<li><span></span><span class="hint">No big upsets. Your picks agree with your ranking.</span></li>';
+
+  const rivals = [...pairs.values()].filter(p => p.n > 1 || p.t)
+    .sort((p, q) => q.n - p.n || q.t - p.t || places.get(p.x) + places.get(p.y) - places.get(q.x) - places.get(q.y)).slice(0, 8);
+  const strangers = [];
+  for (let i = 0; i < Math.min(N - 1, 20) && rivals.length + strangers.length < 6; i++) {
+    if (!R.get(order[i]).opp.has(order[i + 1])) strangers.push({ x: order[i], y: order[i + 1] });
+  }
+  const series = p => {
+    if (p.n === 1) return 'tied';
+    const lead = p.xw === p.yw ? `level ${p.xw}–${p.yw}` : `#${places.get(p.xw > p.yw ? p.x : p.y)} leads ${Math.max(p.xw, p.yw)}–${Math.min(p.xw, p.yw)}`;
+    return `met ${p.n === 1 ? 'once' : p.n + ' times'} · ${p.xw || p.yw ? lead : ''}${p.t ? `${p.xw || p.yw ? ', ' : ''}${p.t} tie${p.t > 1 ? 's' : ''}` : ''}`;
+  };
+  $('#rv-rivals').innerHTML = [...rivals, ...strangers].map(p => {
+    const s = song(p.x);
+    return `<li class="clickable" data-song="${p.x}">${cover(s.album.imageSmall || s.album.image)}
+      <div class="t-main"><div class="t-name">${esc(s.name)} vs ${esc(name(p.y))}</div><div class="t-sub">#${places.get(p.x)} vs #${places.get(p.y)} · ${p.n ? series(p) : 'never met'}</div></div>
+      ${btn(p.x, p.y, !p.n || p.xw === p.yw ? 'Settle it' : 'Rematch')}</li>`;
+  }).join('') || '<li><span></span><span class="hint">No rematches or ties yet.</span></li>';
+}
+function rematch(a, b) {
+  S.current = Math.random() < 0.5 ? [a, b] : [b, a];
+  save();
+  show('play');
+  toast('Rematch. It counts as a new pick.');
+}
+$('#rivals-card').addEventListener('click', e => {
+  const m = e.target.closest('[data-rematch]')?.dataset.rematch;
+  if (m) return rematch(...m.split(','));
+  const id = e.target.closest('[data-song]')?.dataset.song;
+  if (id) showSong(id);
+});
+
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
@@ -1123,6 +1198,56 @@ function renderShared() {
 }
 $('#shared-list').addEventListener('click', e => { const id = e.target.closest('[data-song]')?.dataset.song; if (id) showSong(id); });
 
+// ---------- the matchups behind a song ----------
+
+const record = r => `${r.w}–${r.l}${r.t ? '–' + r.t : ''}`;
+const roundOf = n => Math.floor(n / (poolIds.length / 2)) + 1;
+// Its best win and worst loss, judged by where the opponent sits now.
+function keyGames(log, places) {
+  let best = null, worst = null;
+  for (const g of log) {
+    if (g.res === 1 && (!best || places.get(g.opp) < places.get(best.opp))) best = g;
+    if (g.res === 0 && (!worst || places.get(g.opp) > places.get(worst.opp))) worst = g;
+  }
+  return { best, worst };
+}
+function gamesHtml(id, places) {
+  const r = R.get(id), { best, worst } = keyGames(r.log, places);
+  const res = g => (g.res === 1 ? ['w', 'W', 'Won'] : g.res === 0 ? ['l', 'L', 'Lost'] : ['t', 'T', 'Tied']);
+  const vs = (label, g) => g && `${label}: ${esc(song(g.opp).name)} (now #${places.get(g.opp)})`;
+  return `<h3>How it got here <span class="hint">(${r.log.length} matchup${r.log.length === 1 ? '' : 's'}, rating ${Elo.START} → ${Math.round(r.r)})</span></h3>
+    <div class="spark-wrap">${sparkSvg(r.log, Elo.START)}</div>
+    ${best || worst ? `<p class="hint">${[vs('Best win', best), vs('Worst loss', worst)].filter(Boolean).join(' · ')}</p>` : ''}
+    <ul class="games">${r.log.map(g => {
+      const [c, letter, word] = res(g), d = Math.round(g.d);
+      return `<li data-opp="${g.opp}" title="Open ${esc(song(g.opp).name)}"><span class="res ${c}" aria-label="${word}">${letter}</span>
+        <div class="t-main"><div class="t-name">${esc(song(g.opp).name)}</div><div class="t-sub">now #${places.get(g.opp)} · round ${roundOf(g.n)}</div></div>
+        <span class="d ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span></li>`;
+    }).join('')}</ul>`;
+}
+
+// Desktop: hovering a song in the ranking previews the matchups behind its place (clicking opens all of them).
+const canHover = matchMedia('(hover: hover) and (pointer: fine)');
+let rankPlaces = null, tipFor = null, tipHtml = '';
+function matchTip(id) {
+  const r = R.get(id), { best, worst } = keyGames(r.log, rankPlaces);
+  return `<b>#${rankPlaces.get(id)}</b> ${esc(song(id).name)}
+    <span class="s">${record(r)} · rating ${Elo.START} → ${Math.round(r.r)}</span>
+    ${sparkSvg(r.log, Elo.START, { w: 236, h: 48, pad: 6 })}
+    ${best ? `<span class="s">Best win: ${esc(song(best.opp).name)} (#${rankPlaces.get(best.opp)})</span>` : ''}
+    ${worst ? `<span class="s">Worst loss: ${esc(song(worst.opp).name)} (#${rankPlaces.get(worst.opp)})</span>` : ''}
+    <span class="s">Click for all ${r.log.length} matchups</span>`;
+}
+function rankTipOff() { tipFor = null; hideTip(); }
+$('#rank-list').addEventListener('pointermove', e => {
+  const id = canHover.matches && rankMode === 'songs' && e.target.closest('[data-song]')?.dataset.song;
+  if (!id || !R.get(id)?.g) return rankTipOff();
+  if (id !== tipFor) { tipFor = id; tipHtml = matchTip(id); }
+  showTip(e.clientX, e.clientY, tipHtml);
+});
+$('#rank-list').addEventListener('pointerleave', rankTipOff);
+window.addEventListener('scroll', rankTipOff, { passive: true });
+
 // ---------- song card: versions, split/merge, hot take ----------
 
 function showSong(id) {
@@ -1132,7 +1257,8 @@ function showSong(id) {
   const inPool = poolIds.includes(id);
   const r = R.get(id);
   const crowdRank = inPool ? ranksOf(crowdOrder(poolIds)).get(id) : null;
-  const myRank = inPool && S.picks.length ? myOrder().indexOf(id) + 1 : null;
+  const places = inPool && S.picks.length ? ranksOf(myOrder()) : null;
+  const myRank = places?.get(id) ?? null;
   const touched = s.versions.some(v => S.splits.includes(v.id) || S.chosen.includes(v.id) || S.merges.some(m => m.includes(v.id)));
   dlg.innerHTML = `
     <div class="dlg-head">${cover(s.album.image, '')}
@@ -1147,6 +1273,7 @@ function showSong(id) {
       </table>
       ${S.pool ? `<h3>Your hot take <span class="hint">(shared with your link)</span></h3>
       <textarea id="dlg-note" maxlength="280" placeholder="Criminally underrated. Best bridge on the album…">${esc(noteFor(s))}</textarea>` : ''}
+      ${places && r.log.length ? gamesHtml(id, places) : ''}
       <h3>Versions (${s.versions.length})</h3>
       <ul class="versions">${s.versions.map(v => `<li class="${v.id === s.id ? 'rep' : ''}">${cover(v.album.imageSmall, '')}
         <div class="t-main"><div class="t-name">${esc(v.album.name)}</div><div class="t-sub">${esc(C.KINDS[v.kind] || 'Added by you')} · ${esc((v.album.date || '').slice(0, 4))} · ${C.fmtTime(v.duration)} · ${esc(v.name)}</div></div>
@@ -1161,6 +1288,7 @@ function showSong(id) {
     </div>`;
   const after = () => { rebuild(); if (view !== 'shared') save(); refresh(); const again = sid(id) || id; if (dlg.open) showSong(again); };
   $('#dlg-close').onclick = () => dlg.close();
+  dlg.querySelectorAll('[data-opp]').forEach(li => li.onclick = () => { showSong(li.dataset.opp); dlg.scrollTop = 0; });
   dz.previewUrl(id).then(u => { if (u) $('#dlg-audio').src = u; }).catch(() => {});
   $('#dlg-toggle').onclick = () => {
     togglePool(id, !inPool);

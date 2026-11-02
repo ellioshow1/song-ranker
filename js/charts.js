@@ -105,3 +105,18 @@ export function bumpChart(el, { hist, labels, long, K, follow, name, onPick }) {
   svg.addEventListener('pointerleave', leave);
   svg.addEventListener('click', () => { if (cur) { const id = cur; leave(); onPick(id); } });
 }
+
+// A song's rating after each of its matchups, starting from `start`: a dot per game (win, loss or tie)
+// and a hairline at the starting rating.
+export function sparkSvg(log, start, { w = 480, h = 84, pad = 8 } = {}) {
+  const rs = [start, ...log.map(g => g.r)];
+  const lo = Math.min(...rs), hi = Math.max(...rs), span = Math.max(1, hi - lo);
+  const x = i => pad + (i * (w - 2 * pad)) / Math.max(1, rs.length - 1);
+  const y = v => pad + ((hi - v) * (h - 2 * pad)) / span;
+  const cls = res => (res === 1 ? 'w' : res === 0 ? 'l' : 't');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Rating after each matchup, from ${Math.round(start)} to ${Math.round(rs[rs.length - 1])}">
+    <line class="base" x1="${pad}" x2="${w - pad}" y1="${y(start).toFixed(1)}" y2="${y(start).toFixed(1)}"/>
+    <polyline points="${rs.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}"/>
+    ${log.map((g, i) => `<circle class="${cls(g.res)}" cx="${x(i + 1).toFixed(1)}" cy="${y(g.r).toFixed(1)}" r="4"/>`).join('')}
+  </svg>`;
+}

@@ -14,23 +14,27 @@ export function expected(ra, rb) {
   return 1 / (1 + 10 ** ((rb - ra) / 400));
 }
 
-const fresh = pool => new Map(pool.map(id => [id, { id, r: START, g: 0, w: 0, l: 0, t: 0, opp: new Set() }]));
+const fresh = pool => new Map(pool.map(id => [id, { id, r: START, g: 0, w: 0, l: 0, t: 0, opp: new Set(), log: [] }]));
 
-function play(R, a, b, res) {
+// Each player's log gets an entry per game: { n: index of the pick, opp, res: 1 / 0.5 / 0 for this player,
+// d: rating change, r: rating after }.
+function play(R, a, b, res, n) {
   const A = R.get(a), B = R.get(b);
   if (!A || !B || A === B) return; // one has left the pool, or they've since been merged into one song
   const ea = expected(A.r, B.r);
-  const ka = kFactor(A.g), kb = kFactor(B.g);
-  A.r += ka * (res - ea);
-  B.r += kb * ((1 - res) - (1 - ea));
+  const da = kFactor(A.g) * (res - ea), db = kFactor(B.g) * ((1 - res) - (1 - ea));
+  A.r += da;
+  B.r += db;
   A.g++; B.g++;
   A.opp.add(b); B.opp.add(a);
+  A.log.push({ n, opp: b, res, d: da, r: A.r });
+  B.log.push({ n, opp: a, res: 1 - res, d: db, r: B.r });
   if (res === 1) { A.w++; B.l++; } else if (res === 0) { A.l++; B.w++; } else { A.t++; B.t++; }
 }
 
 export function ratings(pool, picks) {
   const R = fresh(pool);
-  for (const [a, b, res] of picks) play(R, a, b, res);
+  picks.forEach(([a, b, res], n) => play(R, a, b, res, n));
   return R;
 }
 
@@ -39,7 +43,7 @@ export function history(pool, picks, at, tiebreak) {
   const R = fresh(pool), out = [];
   let done = 0;
   for (const n of at) {
-    for (; done < n; done++) play(R, ...picks[done]);
+    for (; done < n; done++) play(R, ...picks[done], done);
     out.push(new Map(ranking(R, tiebreak).map((p, i) => [p.id, i + 1])));
   }
   return out;
