@@ -14,20 +14,35 @@ export function expected(ra, rb) {
   return 1 / (1 + 10 ** ((rb - ra) / 400));
 }
 
+const fresh = pool => new Map(pool.map(id => [id, { id, r: START, g: 0, w: 0, l: 0, t: 0, opp: new Set() }]));
+
+function play(R, a, b, res) {
+  const A = R.get(a), B = R.get(b);
+  if (!A || !B || A === B) return; // one has left the pool, or they've since been merged into one song
+  const ea = expected(A.r, B.r);
+  const ka = kFactor(A.g), kb = kFactor(B.g);
+  A.r += ka * (res - ea);
+  B.r += kb * ((1 - res) - (1 - ea));
+  A.g++; B.g++;
+  A.opp.add(b); B.opp.add(a);
+  if (res === 1) { A.w++; B.l++; } else if (res === 0) { A.l++; B.w++; } else { A.t++; B.t++; }
+}
+
 export function ratings(pool, picks) {
-  const R = new Map(pool.map(id => [id, { id, r: START, g: 0, w: 0, l: 0, t: 0, opp: new Set() }]));
-  for (const [a, b, res] of picks) {
-    const A = R.get(a), B = R.get(b);
-    if (!A || !B || A === B) continue; // one has left the pool, or they've since been merged into one song
-    const ea = expected(A.r, B.r);
-    const ka = kFactor(A.g), kb = kFactor(B.g);
-    A.r += ka * (res - ea);
-    B.r += kb * ((1 - res) - (1 - ea));
-    A.g++; B.g++;
-    A.opp.add(b); B.opp.add(a);
-    if (res === 1) { A.w++; B.l++; } else if (res === 0) { A.l++; B.w++; } else { A.t++; B.t++; }
-  }
+  const R = fresh(pool);
+  for (const [a, b, res] of picks) play(R, a, b, res);
   return R;
+}
+
+// Where every song stood after each of the pick counts in `at` (ascending): one Map of id → place per count.
+export function history(pool, picks, at, tiebreak) {
+  const R = fresh(pool), out = [];
+  let done = 0;
+  for (const n of at) {
+    for (; done < n; done++) play(R, ...picks[done]);
+    out.push(new Map(ranking(R, tiebreak).map((p, i) => [p.id, i + 1])));
+  }
+  return out;
 }
 
 // Everyone in the pool gets a place. Early on, rating-matched pairing leaves many exact ties

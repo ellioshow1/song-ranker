@@ -24,6 +24,7 @@
   </header>
 
   <div id="toast" role="status" hidden></div>
+  <div id="chart-tip" role="tooltip" hidden></div>
 
   <main>
     <section id="view-loading" class="view narrow"><p class="lede">Loading…</p></section>
@@ -184,6 +185,26 @@
         <div class="row wrap">
           <button id="share-img" class="primary">Share image</button>
           <button id="dl-img" class="ghost">Download</button>
+        </div>
+      </div>
+      <div class="card" id="albums-card">
+        <h2>Albums at a glance</h2>
+        <p class="hint">Albums in order of their songs' average place in your ranking. Each dot is a song (left is your #1), the bar is the average. Tap a dot for the song.</p>
+        <div id="ab-tiles"></div>
+        <div id="ab-chart"></div>
+      </div>
+      <div class="card" id="tl-card">
+        <h2>How your ranking took shape</h2>
+        <p class="hint">Where every song stood after each round of matchups (a round is one matchup per song). Tap a line, or pick a song below, to follow it.</p>
+        <p class="hint" id="tl-empty" hidden></p>
+        <div id="tl-body">
+          <div id="tl-tiles"></div>
+          <div class="tl-controls">
+            <div class="seg" id="tl-k"><button data-v="10">Top 10</button><button data-v="25">Top 25</button><button data-v="0">All songs</button></div>
+            <select id="tl-add" aria-label="Follow a song"></select>
+          </div>
+          <div class="fchips" id="tl-follow"></div>
+          <div id="tl-chart"></div>
         </div>
       </div>
       <div class="card">

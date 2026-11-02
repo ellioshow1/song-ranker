@@ -25,6 +25,9 @@ picks are copied (never moved) and replayed as Elo ratings.
   what you think is overplayed, a scatter of every song and both top 25s.
 - **Sharing:** a link with your whole ranking and your hot takes (notes on songs), an image of your top 10/25/50, or text.
   Opening a friend's link shows their list against yours and the crowd; save it to compare any time.
+- **Charts on the Share tab:** albums at a glance (each album's songs as dots by place, albums ordered by average place)
+  and how your ranking took shape (every song's place after each round of matchups, with the biggest climb, the biggest
+  fall and who has held #1). Follow up to 8 songs through it.
 - **Group ranking:** blend you and any saved friends into a consensus list, see the most divisive songs and who agrees
   with whom.
 - Optional Spotify playlist export (matched by ISRC), and backup/restore.
@@ -39,8 +42,9 @@ Double-click `start.bat`, or run `python -m http.server 8775 --bind 127.0.0.1` h
 
 - `js/deezer.js`: Deezer API via JSONP, rate limited, catalog scan, previews
 - `js/catalog.js`: song merging, version tags, release kinds, filters and presets
-- `js/elo.js`: Elo ratings replayed from picks, pairing, progress levels
+- `js/elo.js`: Elo ratings replayed from picks (also round by round), pairing, progress levels
 - `js/compare.js`: agreement, disagreements, group consensus, scatter
+- `js/charts.js`: the round-by-round bump chart and the chart tooltip
 - `js/share.js`: share links (varint-packed ids + hot takes) and the share image
 - `js/store.js`: localStorage + IndexedDB, read-only access to the old app's saves
 - `js/spotify.js`, `js/config.js`: optional Spotify export

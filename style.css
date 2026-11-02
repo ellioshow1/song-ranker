@@ -212,6 +212,62 @@ table.matrix th:first-child { text-align: left; }
 .seg button { border: 0; border-radius: 0; background: var(--panel-2); padding: 8px 14px; color: var(--muted); }
 .seg button + button { border-left: 1px solid var(--line); }
 .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.card .stat-tiles { margin: 6px 0 14px; }
+.card .tile { background: var(--panel-2); }
+.card .tile .num { font-size: 21px; }
+
+#chart-tip {
+  position: fixed; z-index: 40; pointer-events: none; max-width: 260px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;
+  font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+}
+#chart-tip b { font-size: 16px; margin-right: 4px; }
+#chart-tip .s { display: block; color: var(--muted); font-size: 12px; }
+
+/* Albums at a glance: one strip per album, a dot per song by place, a bar at the average */
+.ab-axis, .ab-list li { display: grid; grid-template-columns: 40px minmax(0, 190px) 1fr 62px; gap: 12px; align-items: center; }
+.ab-axis { height: 18px; }
+.ab-ticks { position: relative; height: 18px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ab-ticks span { position: absolute; top: 0; transform: translateX(-50%); }
+.ab-ticks span:first-child { transform: none; }
+.ab-ticks span:last-child { transform: translateX(-100%); }
+.ab-list { list-style: none; padding: 0; margin: 4px 0 0; }
+.ab-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ab-list .cv { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; background: var(--panel-2); }
+.ab-list .cv.rest { display: grid; place-items: center; color: var(--muted); font-size: 18px; }
+.ab-strip { position: relative; height: 32px; cursor: pointer; touch-action: pan-y; }
+.ab-strip::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line); }
+.ab-strip i { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #b9b9c8; box-shadow: 0 0 0 2px var(--panel); transition: transform .1s; }
+.ab-strip i.on { background: var(--text); transform: scale(1.4); z-index: 1; }
+.ab-strip b { position: absolute; top: 50%; width: 4px; height: 26px; margin: -13px 0 0 -2px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--panel); z-index: 2; pointer-events: none; }
+.ab-val { text-align: right; line-height: 1.15; }
+.ab-val b { display: block; font-size: 16px; }
+.ab-val span { font-size: 11px; color: var(--muted); }
+
+/* How your ranking took shape: bump chart */
+.tl-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+#tl-add { flex: 1 1 200px; padding: 8px 10px; }
+.fchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.fchip { display: inline-flex; gap: 8px; align-items: center; padding: 4px 10px; font-size: 13px; border-radius: 999px; max-width: 100%; }
+.fchip .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fchip i { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.fchip .x { color: var(--muted); margin-left: 2px; }
+#tl-chart { min-height: 120px; }
+.bump { display: block; max-width: 100%; touch-action: pan-y; }
+.bump text { font: 12px 'Space Grotesk', system-ui, sans-serif; fill: var(--muted); }
+.bump text.f { fill: var(--text); font-weight: 600; }
+.bump .tick { font-size: 11px; font-variant-numeric: tabular-nums; }
+.bump .grid { stroke: #1f1f29; stroke-width: 1; }
+.bump .bg polyline { fill: none; stroke: #3a3a48; stroke-width: 1.25; stroke-linejoin: round; }
+.bump .bg.dense polyline { stroke-opacity: .6; stroke-width: 1; }
+.bump .fg polyline, .bump .hl { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.bump .fg circle, .bump .hov circle { stroke: var(--panel); stroke-width: 2; }
+.bump .hl { stroke-width: 3; }
+.bump .cross { stroke: var(--muted); stroke-width: 1; }
+.bump .leader { fill: none; stroke: var(--muted); stroke-width: 1; }
+.bump .key { stroke-width: 3; stroke-linecap: round; }
+.bump .hit { cursor: pointer; }
+
 .steps ol { padding-left: 20px; margin: 0 0 16px; }
 .steps li { margin-bottom: 10px; }
 .copyrow { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
@@ -258,4 +314,9 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
   .cols, .side-by-side { grid-template-columns: 1fr; }
   .plist.ranked li { grid-template-columns: 3ch 40px 1fr auto; gap: 8px; }
   .plist img.cv { width: 40px; height: 40px; }
+  .ab-list li { grid-template-columns: 40px 1fr auto; gap: 4px 10px; }
+  .ab-list .ab-strip { grid-row: 2; grid-column: 1 / -1; }
+  .ab-list .ab-val { grid-row: 1; grid-column: 3; }
+  .ab-axis { display: block; }
+  .ab-axis > span { display: none; }
 }

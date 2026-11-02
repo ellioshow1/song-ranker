@@ -5,6 +5,7 @@ import * as C from './catalog.js';
 import * as store from './store.js';
 import { agreement, disagreements, consensus, scatterSvg } from './compare.js';
 import { shareUrl, readShared, renderImage, canvasBlob } from './share.js';
+import { SLOTS, bumpChart, showTip, hideTip } from './charts.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -62,8 +63,9 @@ function rebuild() {
   idx = C.songIndex(songs);
   byId = new Map(songs.map(s => [s.id, s]));
   poolIds = S.pool ? resolve(S.pool) : [];
-  R = Elo.ratings(poolIds, S.picks.map(([a, b, r]) => [sid(a), sid(b), r]));
+  R = Elo.ratings(poolIds, songPicks());
 }
+const songPicks = () => S.picks.map(([a, b, r]) => [sid(a), sid(b), r]);
 
 const catalogOrder = () => new Map(songs.map((s, i) => [s.id, i]));
 const myOrder = () => Elo.ranking(R, catalogOrder()).map(r => r.id);
@@ -101,6 +103,7 @@ const ARTIST_VIEWS = ['songs', 'play', 'rank', 'compare', 'share'];
 function show(v) {
   view = v;
   if (v !== 'play') players.pauseAll();
+  hideTip();
   for (const s of $$('.view')) s.hidden = s.id !== 'view-' + v;
   const open = !!S && ARTIST_VIEWS.includes(v);
   document.body.classList.toggle('open', open);
@@ -789,6 +792,8 @@ function renderShare() {
   $('#share-name').value = me.name;
   $('#link-len').textContent = `(${myLink().length.toLocaleString()} characters.)`;
   renderImg();
+  renderAlbums(myOrder());
+  renderTimeline();
   $('#sp-connect').hidden = sp.isLoggedIn();
   $('#sp-save').hidden = !sp.isLoggedIn();
   if (!$('#pl-name').value || $('#pl-name').dataset.artist !== S.artist.id) {
@@ -835,6 +840,140 @@ $('#share-img').onclick = async () => {
   $('#dl-img').click();
   toast("This browser can't share images directly, so it was downloaded instead.");
 };
+
+// Albums at a glance: each album or EP with 3+ songs in the ranking (singles and everything else pooled), by average place.
+let abGroups = [], abN = 0;
+function renderAlbums(order) {
+  const N = abN = order.length;
+  const rows = albumRanking(order).rows.filter(g => g.album.group === 'album' || g.album.type === 'ep');
+  const inAlbum = new Set(rows.flatMap(g => g.ids));
+  const rest = order.map((id, i) => [id, i + 1]).filter(([id]) => !inAlbum.has(id));
+  abGroups = rows.map(g => ({ name: g.album.name, image: g.album.imageSmall || g.album.image, year: (g.album.date || '').slice(0, 4), ids: g.ids, ranks: g.ranks }));
+  if (rest.length) abGroups.push({ name: 'Singles & the rest', year: '', rest: true, ids: rest.map(r => r[0]), ranks: rest.map(r => r[1]) });
+  for (const g of abGroups) {
+    g.avg = g.ranks.reduce((a, b) => a + b, 0) / g.ranks.length;
+    g.spread = Math.sqrt(g.ranks.reduce((a, r) => a + (r - g.avg) ** 2, 0) / g.ranks.length);
+  }
+  abGroups.sort((a, b) => a.avg - b.avg);
+  const wait = S.picks.length < N / 2 ? 'Shows up after your first round of matchups (one per song).'
+    : abGroups.length < 2 ? 'Shows up once at least one album has 3 songs in your ranking.' : '';
+  if (wait) {
+    $('#ab-tiles').innerHTML = '';
+    $('#ab-chart').innerHTML = `<p class="hint">${wait}</p>`;
+    return;
+  }
+  const albums = abGroups.filter(g => !g.rest);
+  const wild = [...albums].sort((a, b) => b.spread - a.spread)[0];
+  $('#ab-tiles').innerHTML = tilesHtml([
+    [esc(albums[0].name), `is your favourite album (average place ${fmt1(albums[0].avg)})`],
+    ...(albums.length > 1 ? [[esc(wild.name), `is the most hit-or-miss: its songs run from #${wild.ranks[0]} to #${wild.ranks[wild.ranks.length - 1]}`]] : []),
+    ...(albums.length > 2 ? [[esc(albums[albums.length - 1].name), `comes last (average place ${fmt1(albums[albums.length - 1].avg)})`]] : []),
+  ]);
+  const pos = r => (N > 1 ? ((r - 1) / (N - 1)) * 100 : 50);
+  const ticks = [...new Set([1, Math.round(N / 4), Math.round(N / 2), Math.round((3 * N) / 4), N])].filter(r => r >= 1);
+  $('#ab-chart').innerHTML = `<div class="ab-axis"><span></span><span></span><div class="ab-ticks">${ticks.map(r => `<span style="left:${pos(r)}%">#${r}</span>`).join('')}</div><span></span></div>
+    <ul class="ab-list">${abGroups.map((g, i) => `<li>${g.rest ? '<span class="cv rest">♪</span>' : cover(g.image)}
+      <div class="t-main"><div class="t-name">${esc(g.name)}</div><div class="t-sub">${esc([g.year, `${g.ids.length} songs`, `best: ${song(g.ids[0]).name} (#${g.ranks[0]})`].filter(Boolean).join(' · '))}</div></div>
+      <div class="ab-strip" data-g="${i}">${g.ranks.map(r => `<i style="left:${pos(r)}%"></i>`).join('')}<b style="left:${pos(g.avg)}%"></b></div>
+      <div class="ab-val"><b>${fmt1(g.avg)}</b><span>avg place</span></div></li>`).join('')}</ul>`;
+}
+// The song nearest the pointer on an album's strip.
+function abAt(strip, e) {
+  const g = abGroups[+strip.dataset.g], b = strip.getBoundingClientRect();
+  const r = 1 + ((e.clientX - b.left) / b.width) * (abN - 1);
+  let k = 0;
+  g.ranks.forEach((x, j) => { if (Math.abs(x - r) < Math.abs(g.ranks[k] - r)) k = j; });
+  return { g, k };
+}
+function abClear() { for (const d of $$('.ab-strip i.on')) d.classList.remove('on'); hideTip(); }
+$('#ab-chart').addEventListener('pointermove', e => {
+  const strip = e.target.closest('.ab-strip');
+  abClear();
+  if (!strip) return;
+  const { g, k } = abAt(strip, e);
+  strip.children[k].classList.add('on');
+  showTip(e.clientX, e.clientY, `<b>#${g.ranks[k]}</b> ${esc(song(g.ids[k]).name)}<span class="s">${esc(g.name)}</span>`);
+});
+$('#ab-chart').addEventListener('pointerleave', abClear);
+$('#ab-chart').addEventListener('click', e => {
+  const strip = e.target.closest('.ab-strip');
+  if (!strip) return;
+  const { g, k } = abAt(strip, e);
+  abClear();
+  showSong(g.ids[k]);
+});
+
+// How the ranking took shape: places replayed after every round (one matchup per song, so n/2 picks),
+// thinned to about 40 checkpoints for long rankings.
+let tlK = 0, follow = [], followFor = null, tlWidth = 0;
+function checkpoints() {
+  const per = poolIds.length / 2, total = S.picks.length / per;
+  const step = Math.max(1, Math.ceil(Math.floor(total) / 40));
+  const at = [], labels = [];
+  for (let k = step; k <= total; k += step) { at.push(Math.round(k * per)); labels.push(String(k)); }
+  if (at.length && at[at.length - 1] < S.picks.length) { at.push(S.picks.length); labels.push('Now'); }
+  return { at, labels };
+}
+function renderTimeline() {
+  const N = poolIds.length, { at, labels } = checkpoints();
+  const enough = at.length >= 2;
+  $('#tl-body').hidden = !enough;
+  $('#tl-empty').hidden = enough;
+  if (!enough) {
+    $('#tl-empty').textContent = `Shows up after a round or two of matchups: about ${N.toLocaleString()} picks for your ${N} songs (you're on ${S.picks.length.toLocaleString()}).`;
+    return;
+  }
+  const hist = Elo.history(poolIds, songPicks(), at, catalogOrder());
+  const first = hist[0], last = hist[hist.length - 1];
+  const order = [...last.keys()].sort((a, b) => last.get(a) - last.get(b));
+  const name = id => song(id).name;
+  const long = i => (labels[i] === 'Now' ? 'Now' : `After round ${labels[i]}`);
+  if (followFor !== S.artist.id) { follow = order.slice(0, 5).map((id, i) => [id, i]); followFor = S.artist.id; }
+  follow = follow.filter(([id]) => last.has(id));
+
+  const moves = order.map(id => ({ id, a: first.get(id), b: last.get(id) }));
+  const up = moves.reduce((x, y) => (y.a - y.b > x.a - x.b ? y : x)), down = moves.reduce((x, y) => (y.a - y.b < x.a - x.b ? y : x));
+  const tops = hist.map(m => { for (const [id, r] of m) if (r === 1) return id; });
+  let since = tops.length - 1;
+  while (since > 0 && tops[since - 1] === tops[tops.length - 1]) since--;
+  const kings = new Set(tops).size;
+  $('#tl-tiles').innerHTML = tilesHtml([
+    ...(up.a > up.b ? [[`▲${up.a - up.b}`, `${name(up.id)}: #${up.a} ${long(0).toLowerCase()}, #${up.b} now. The biggest climb.`]] : []),
+    ...(down.a < down.b ? [[`▼${down.b - down.a}`, `${name(down.id)}: #${down.a} ${long(0).toLowerCase()}, #${down.b} now. The biggest fall.`]] : []),
+    [String(kings), kings === 1
+      ? `song has held #1: ${name(tops[0])}, every round`
+      : `songs have held #1. ${name(tops[tops.length - 1])} ${labels[since] === 'Now' ? 'just took the top spot' : `has been on top since round ${labels[since]}`}.`],
+  ]);
+
+  if (tlK >= N) tlK = 0;
+  for (const b of $$('#tl-k button')) { b.hidden = +b.dataset.v >= N; b.classList.toggle('on', +b.dataset.v === tlK); }
+  const fset = new Set(follow.map(([id]) => id));
+  $('#tl-add').innerHTML = '<option value="">Follow a song…</option>' +
+    order.map(id => (fset.has(id) ? '' : `<option value="${id}">${last.get(id)}. ${esc(name(id))}</option>`)).join('');
+  $('#tl-follow').innerHTML = follow.map(([id, s]) => `<button class="fchip ghost" data-unfollow="${id}" title="Stop following">
+    <i style="background:${SLOTS[s]}"></i><span class="n">#${last.get(id)} ${esc(name(id))}</span><span class="x">×</span></button>`).join('');
+  tlWidth = $('#tl-chart').clientWidth;
+  bumpChart($('#tl-chart'), { hist, labels, long, K: tlK || N, follow: follow.map(([id, s]) => [id, SLOTS[s]]), name, onPick: toggleFollow });
+}
+function toggleFollow(id) {
+  const i = follow.findIndex(([f]) => f === id);
+  if (i >= 0) follow.splice(i, 1);
+  else {
+    const used = new Set(follow.map(([, s]) => s));
+    const slot = SLOTS.findIndex((_, s) => !used.has(s));
+    if (slot < 0) return toast(`You can follow ${SLOTS.length} songs at a time. Remove one first.`);
+    follow.push([id, slot]);
+  }
+  renderTimeline();
+}
+$('#tl-k').onclick = e => { const v = e.target.dataset.v; if (v != null) { tlK = +v; renderTimeline(); } };
+$('#tl-add').onchange = () => { const id = $('#tl-add').value; if (id) toggleFollow(id); };
+$('#tl-follow').onclick = e => { const id = e.target.closest('[data-unfollow]')?.dataset.unfollow; if (id) toggleFollow(id); };
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (view === 'share' && S?.pool && $('#tl-chart').clientWidth !== tlWidth) renderTimeline(); }, 150);
+});
 
 // Spotify export: each song is matched once (by ISRC) and remembered.
 const sentence = m => (/[.!?]$/.test(m) ? m : m + '.');
